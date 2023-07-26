@@ -1,9 +1,10 @@
 kind: Template
-apiVersion: v1
+apiVersion: template.openshift.io/v1
 metadata:
   name: nodewf-template
   annotations:
     description: Plantilla para generar app
+  namespace: test
 objects:
   - kind: Project
     apiVersion: v1
