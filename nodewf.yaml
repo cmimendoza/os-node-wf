@@ -1,0 +1,168 @@
+kind: Template
+apiVersion: v1
+metadata:
+  name: nodewf-template
+  annotations:
+    description: Plantilla para generar app
+objects:
+  - kind: Project
+    apiVersion: v1
+    metadata:
+      name: ${PROJECT_NAME}
+  - kind: ImageStream
+    apiVersion: v1
+    metadata:
+      labels:
+        app: "${APPLICATION}-app"
+      name: "${APPLICATION}-is"
+      namespace: ${PROJECT_NAME}
+  - kind: Secret
+    apiVersion: v1
+    metadata:
+      name: '${APPLICATION}-secret'
+      namespace: ${PROJECT_NAME}
+    type: Opaque
+    data:
+      WebHookSecretKey: "${WH_SECRET}"
+  - kind: BuildConfig
+    apiVersion: v1
+    metadata:
+      name: "${APPLICATION}-bc"
+      namespace: ${PROJECT_NAME}
+      labels:
+        app: "${APPLICATION}-app"
+    spec:
+      source:
+        type: Git
+        git:
+          uri: "${GIT_URL}"
+      strategy:
+        type: Docker
+        dockerStrategy:
+          dockerfilePath: ./Dockerfile
+      output:
+        to:
+          kind: ImageStreamTag
+          name: '${APPLICATION}-is:latest'
+      triggers:
+      - generic:
+          secretReference:
+            name: '${APPLICATION}-secret'
+        type: Generic
+      - github:
+          secretReference:
+            name: '${APPLICATION}-secret'
+        type: Github
+      - imageChange:
+        type: ImageChange
+      - type: ConfigChange
+  - kind: DeploymentConfig
+    apiVersion: v1
+    metadata:
+        name: "${APPLICATION}-dc"
+        namespace: ${PROJECT_NAME}
+        labels:
+            app: "${APPLICATION}-app"
+    spec:
+        replicas: 1
+        strategy:
+            type: Rolling
+            rollingParams:
+                updatePeriodSeconds: 1
+                intervalSeconds: 1
+                timeoutSeconds: 600
+                maxUnavailable: 25%
+                maxSurge: 25%
+            resources: {}
+            activeDeadlineSeconds: 21600
+        template:
+          metadata:
+            creationTimestamp: null
+            labels:
+              app: "${APPLICATION}-app"
+              deploymentconfig: "${APPLICATION}-dc"
+            name: "${APPLICATION}-app"
+            namespace: ${PROJECT_NAME}
+          spec:
+            containers:
+            - image: "${APPLICATION}-is:latest"
+              name: "${APPLICATION}-is"
+              ports:
+              - containerPort: 3000
+                protocol: TCP
+                name: http
+            terminationGracePeriodSeconds: 75
+        triggers:
+            - type: ConfigChange
+            - type: ImageChange
+              imageChangeParams:
+                automatic: true
+                containerNames:
+                - "${APPLICATION}-is"
+                from:
+                  kind: ImageStreamTag
+                  name: "${APPLICATION}-is:latest"
+  - kind: Service
+    apiVersion: v1
+    metadata:
+        annotations:
+            description: "Servicio de ${APPLICATION}"
+        labels:
+            app: "${APPLICATION}-app"
+        name: "${APPLICATION}-svc"
+        namespace: ${PROJECT_NAME}
+    spec:
+        ports:
+        - port: 3000
+          targetPort: 3000
+        selector:
+          app: "${APPLICATION}-app"
+  - kind: Route
+    apiVersion: route.openshift.io/v1
+    metadata:
+      name: '${HOST}'
+      namespace: ${PROJECT_NAME}
+      labels:
+        app: "${APPLICATION}-app"
+    spec:
+      host: '${HOST}'
+      to:
+        kind: Service
+        name: "${APPLICATION}-svc"
+        weight: 100
+      port:
+        targetPort: 3000
+      wildcardPolicy: None
+    status:
+      ingress:
+        - host: '${HOST}'
+          routerName: default
+          conditions:
+            - type: Admitted
+              status: 'True'
+          wildcardPolicy: None
+parameters:
+- name: APPLICATION
+  displayName: Nombre de app
+  description: Nombre de la aplicacion
+  from: 'app-[a-z0-9]{5}'
+  generate: expression
+- name: WH_SECRET
+  displayName: WH Pass
+  description: Password del Web Hook (DefaultPass)
+  value: RGVmYXVsdFBhc3M=
+- name: GIT_URL
+  displayName: Git Url
+  description: URL del repositorio Git
+  value: 'https://github.com/cmimendoza/os-node-hello.git'
+- name: HOST
+  displayName: hostName
+  description: El Hostname
+  value: 'ziknode.com'
+- name: PROJECT_NAME
+  displayName: Proyecto
+  description: Nombre del proyecto
+  value: 'node-wf'
+labels:
+  node-wf-version: "1.0"
+        
