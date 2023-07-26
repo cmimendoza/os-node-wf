@@ -4,7 +4,6 @@ metadata:
   name: nodewf-template
   annotations:
     description: Plantilla para generar app
-  namespace: test
 objects:
   - kind: Project
     apiVersion: v1
