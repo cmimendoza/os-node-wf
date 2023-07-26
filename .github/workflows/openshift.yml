@@ -128,13 +128,23 @@ jobs:
         
     - name: Crea Template
       run: |
-        #oc delete template -n openshift nodewf-template
         if oc get template -n openshift nodewf-template >/dev/null 2>&1; then
             echo "TEMPLATE_EXISTE=true" >> $GITHUB_ENV
             echo "El template ya existe...."
           else
             echo "TEMPLATE_EXISTE=false" >> $GITHUB_ENV
             oc apply -n openshift -f nodewf.yaml
+        fi
+        
+    - name: Crea App
+      run: |
+        #oc project ${OPENSHIFT_NAMESPACE}
+        if oc get bc -n ${OPENSHIFT_NAMESPACE} ${APP_NAME}-bc >/dev/null 2>&1; then
+            echo "Actualiza..."
+            oc start-build ${APP_NAME}-bc
+          else
+            echo "Creando Nueva..."
+            oc new-app -n openshift --template=nodewf-template -p PROJECT_NAME=${OPENSHIFT_NAMESPACE} -p APPLICATION=${APP_NAME} -p HOST=ziknode2.com -p GIT_URL=https://github.com/cmimendoza/os-node-wf.git
         fi
         
 
