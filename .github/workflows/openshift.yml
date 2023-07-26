@@ -128,7 +128,7 @@ jobs:
         
     - name: Crea Template
       run: |
-        oc delete template -n openshift nodewf-template
+        #oc delete template -n openshift nodewf-template
         oc apply -n openshift -f nodewf.yaml
 
 
