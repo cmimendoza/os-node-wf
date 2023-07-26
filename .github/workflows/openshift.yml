@@ -129,6 +129,13 @@ jobs:
     - name: Crea Template
       run: |
         #oc delete template -n openshift nodewf-template
-        oc apply -n openshift -f nodewf.yaml
+        if oc get template -n openshift nodewf-template >/dev/null 2>&1; then
+            echo "TEMPLATE_EXISTE=true" >> $GITHUB_ENV
+            echo "El template ya existe...."
+          else
+            echo "TEMPLATE_EXISTE=false" >> $GITHUB_ENV
+            oc apply -n openshift -f nodewf.yaml
+        fi
+        
 
 
